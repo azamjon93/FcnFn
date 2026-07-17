@@ -185,4 +185,8 @@ internal static class Native
 
     internal const uint DT_CENTER = 0x1, DT_VCENTER = 0x4, DT_SINGLELINE = 0x20;
     internal const int TRANSPARENT = 1;
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    internal static extern IntPtr CreateMutexW(IntPtr attr, bool initialOwner, string name);
+    internal const int ERROR_ALREADY_EXISTS = 183;
 }
