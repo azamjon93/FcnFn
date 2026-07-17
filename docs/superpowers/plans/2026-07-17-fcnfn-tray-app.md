@@ -230,9 +230,9 @@ git commit -m "refactor: move Win32 interop into Native.cs"
 
 ---
 
-### Task 2 done. Task 3 is the core refactor + optimization and is fully test-driven.
-
 ### Task 3: Extract the pure RemapEngine (TDD)
+
+> This is the core refactor + optimization, and it is fully test-driven.
 
 **Files:**
 - Create: `FcnFn/RemapEngine.cs`
@@ -830,9 +830,9 @@ public class AutoStartTests
         int tn = Array.IndexOf(args, "/TN");
         Assert.Equal("FcnFn", args[tn + 1]);
 
-        // The run target must be the quoted exe path so spaces survive.
+        // The run target is the raw exe path; ArgumentList quotes it if needed.
         int tr = Array.IndexOf(args, "/TR");
-        Assert.Equal("\"C:\\Tools\\FcnFn.exe\"", args[tr + 1]);
+        Assert.Equal(@"C:\Tools\FcnFn.exe", args[tr + 1]);
     }
 
     [Fact]
@@ -874,9 +874,11 @@ internal static class AutoStart
 {
     public const string TaskName = "FcnFn";
 
+    // ArgumentList (in Run) quotes each arg as needed, so pass the raw path —
+    // pre-quoting it here would double-encode and corrupt the /TR value.
     public static string[] CreateArgs(string exePath) => new[]
     {
-        "/Create", "/TN", TaskName, "/TR", $"\"{exePath}\"",
+        "/Create", "/TN", TaskName, "/TR", exePath,
         "/SC", "ONLOGON", "/RL", "LIMITED", "/F"
     };
 
