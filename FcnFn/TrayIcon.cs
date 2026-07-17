@@ -107,7 +107,9 @@ internal sealed class TrayIcon : IDisposable
 
     private IntPtr WndProcImpl(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
     {
-        if (msg == _wmTaskbarCreated)
+        // Guard against _wmTaskbarCreated == 0 (RegisterWindowMessage failure):
+        // WM_NULL (0) is posted on every menu close, and must not re-add the icon.
+        if (_wmTaskbarCreated != 0 && msg == _wmTaskbarCreated)
         {
             _nid.uFlags = Native.NIF_MESSAGE | Native.NIF_ICON | Native.NIF_TIP;
             Native.Shell_NotifyIconW(Native.NIM_ADD, ref _nid);

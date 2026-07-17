@@ -183,10 +183,10 @@ public class RemapEngineTests
     {
         var e = new RemapEngine();
         e.Process(0x5C /*RWin*/, isDown: true, isMarker: false);
-        e.Process(0x84 /*F21*/, isDown: true, isMarker: false); // fires; ReleaseMod adds 0x5B and 0x5C
+        e.Process(0x84 /*F21*/, isDown: true, isMarker: false); // fires; RWin was the held variant, so ReleaseMod suppresses 0x5C
 
         var up = e.Process(0x5C /*RWin*/, isDown: false, isMarker: false);
-        Assert.True(up.Swallow); // right-variant up suppressed via the +1 arithmetic
+        Assert.True(up.Swallow); // the actually-held right variant's up is suppressed
     }
 
     [Fact]
@@ -195,10 +195,10 @@ public class RemapEngineTests
         var e = new RemapEngine();
         e.Process(0x5B /*LWin*/, isDown: true, isMarker: false);
         e.Process(0xA3 /*RCtrl*/, isDown: true, isMarker: false);
-        e.Process(0x84 /*F21*/, isDown: true, isMarker: false); // Ctrl+Win chord; ReleaseMod(0xA2) adds 0xA2 and 0xA3
+        e.Process(0x84 /*F21*/, isDown: true, isMarker: false); // Ctrl+Win chord; RCtrl was held, so ReleaseMod suppresses 0xA3
 
         var up = e.Process(0xA3 /*RCtrl*/, isDown: false, isMarker: false);
-        Assert.True(up.Swallow); // right Ctrl up suppressed
+        Assert.True(up.Swallow); // the actually-held right Ctrl variant's up is suppressed
     }
 
     [Fact]

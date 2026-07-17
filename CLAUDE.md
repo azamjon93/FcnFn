@@ -16,6 +16,7 @@ dotnet run --project FcnFn   # launches the tray app (managed build)
 
 - **Tests:** only the pure logic is unit-tested — `RemapEngine` (the remap decision state machine) and `AutoStart`'s argument builders, in `FcnFn.Tests`. Everything touching the Win32 hook, tray, GDI, console, or scheduled task cannot be exercised headlessly and is verified by build + manual runtime checks on a real interactive Windows session.
 - **CLI flags:** `FcnFn --install` registers the per-user logon auto-start task; `FcnFn --uninstall` removes it. Both return immediately without showing the tray. Any other launch shows the tray and installs the hook.
+- **Auto-start needs elevation:** creating/removing the logon Scheduled Task via `schtasks` requires admin, so `--install`/`--uninstall` and the tray's "Run at login" toggle launch `schtasks` elevated via a UAC prompt (`ShellExecute` `runas`). Declining the prompt is handled gracefully (no-op, `ERROR_CANCELLED` swallowed). The remap hook and tray themselves need **no** admin — only enabling auto-start does. (`schtasks /Query` for the checkmark state runs un-elevated.)
 - **Target framework** is `net10.0` (NOT `net10.0-windows` — all Windows access is manual P/Invoke) with `PublishAot=true` and `OutputType=WinExe`.
 
 ### AOT publish
@@ -48,7 +49,7 @@ Starts hidden, installs the hook, shows the tray icon (which reflects enabled/di
 
 - **Enabled** — toggle remapping on/off. Also toggled by **Scroll Lock** (a quick-toggle hotkey; the physical Scroll Lock key is always swallowed so apps never see it) and by left/double-click on the icon.
 - **Diagnostic logging** — opens an on-demand console window logging every key event (vk/scancode/flags/injected/ours/down-up). Use this first on a new keyboard to capture the actual VKs before editing the maps. (This replaced the old `diag` command-line mode.)
-- **Run at login** — register/unregister this user's logon auto-start task (checked when present).
+- **Run at login** — register/unregister this user's logon auto-start task (checked when present). Toggling it triggers a UAC elevation prompt (see "Auto-start needs elevation" above).
 - **Quit** — unhook, remove the tray icon, exit.
 
 A named mutex enforces a single instance (a second launch, e.g. a login race, exits immediately). Auto-start is **per-user** (no admin); a machine-wide "all users" install would need elevation and is out of scope.
