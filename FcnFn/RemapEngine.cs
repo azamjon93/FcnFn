@@ -35,8 +35,8 @@ internal sealed class RemapEngine
     private const uint VK_SCROLL = 0x91;
 
     // Injected-op scratch buffer, reused every Process() call (no per-key alloc).
-    // Worst case is a first-fire triple-modifier chord: 0xFF down/up (2) +
-    // release Win/Shift/Ctrl (3) + F-key down (1) = 6.
+    // Worst case (no ChordMap entry uses all three modifiers) is a first-fire
+    // dual-modifier chord: 0xFF down/up (2) + release two mods (2) + F-key down (1) = 5.
     private readonly InjectOp[] _buffer = new InjectOp[8];
     private int _count;
 
@@ -49,10 +49,9 @@ internal sealed class RemapEngine
 
     public ReadOnlySpan<InjectOp> Injects => _buffer.AsSpan(0, _count);
 
-    private HookOutcome Emit(ushort vk, bool up)
+    private void Emit(ushort vk, bool up)
     {
         _buffer[_count++] = new InjectOp(vk, up);
-        return default; // convenience; callers set Swallow explicitly
     }
 
     private void ReleaseMod(ushort vk)

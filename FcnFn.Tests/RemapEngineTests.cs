@@ -140,4 +140,64 @@ public class RemapEngineTests
         Assert.False(r.Swallow);
         Assert.Empty(Ops(e));
     }
+
+    [Fact]
+    public void Ctrl_win_chord_emits_f8_releasing_win_then_ctrl()
+    {
+        var e = new RemapEngine();
+        e.Process(0x5B /*LWin*/, isDown: true, isMarker: false);
+        e.Process(0xA2 /*LCtrl*/, isDown: true, isMarker: false);
+        var r = e.Process(0x84 /*F21*/, isDown: true, isMarker: false);
+
+        Assert.True(r.Swallow);
+        // 0xFF x2, release Win (0x5B), release Ctrl (0xA2), then F8 (0x77).
+        Assert.Equal(new[]
+        {
+            new InjectOp(0xFF, false),
+            new InjectOp(0xFF, true),
+            new InjectOp(0x5B, true),
+            new InjectOp(0xA2, true),
+            new InjectOp(0x77 /*F8*/, false),
+        }, Ops(e));
+    }
+
+    [Fact]
+    public void Win_tab_chord_emits_f10()
+    {
+        var e = new RemapEngine();
+        e.Process(0x5B /*LWin*/, isDown: true, isMarker: false);
+        var r = e.Process(0x09 /*Tab*/, isDown: true, isMarker: false);
+
+        Assert.True(r.Swallow);
+        Assert.Equal(new[]
+        {
+            new InjectOp(0xFF, false),
+            new InjectOp(0xFF, true),
+            new InjectOp(0x5B, true),
+            new InjectOp(0x79 /*F10*/, false),
+        }, Ops(e));
+    }
+
+    [Fact]
+    public void Right_win_up_after_chord_is_suppressed()
+    {
+        var e = new RemapEngine();
+        e.Process(0x5C /*RWin*/, isDown: true, isMarker: false);
+        e.Process(0x84 /*F21*/, isDown: true, isMarker: false); // fires; ReleaseMod adds 0x5B and 0x5C
+
+        var up = e.Process(0x5C /*RWin*/, isDown: false, isMarker: false);
+        Assert.True(up.Swallow); // right-variant up suppressed via the +1 arithmetic
+    }
+
+    [Fact]
+    public void Right_ctrl_up_after_chord_is_suppressed()
+    {
+        var e = new RemapEngine();
+        e.Process(0x5B /*LWin*/, isDown: true, isMarker: false);
+        e.Process(0xA3 /*RCtrl*/, isDown: true, isMarker: false);
+        e.Process(0x84 /*F21*/, isDown: true, isMarker: false); // Ctrl+Win chord; ReleaseMod(0xA2) adds 0xA2 and 0xA3
+
+        var up = e.Process(0xA3 /*RCtrl*/, isDown: false, isMarker: false);
+        Assert.True(up.Swallow); // right Ctrl up suppressed
+    }
 }
