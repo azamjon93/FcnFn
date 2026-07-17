@@ -30,17 +30,19 @@ internal static unsafe class FcnFn
     private static bool _diag;
     private static readonly RemapEngine _engine = new();
     private static LowLevelKeyboardProc _proc = HookCallback; // pin against GC
-    private static IntPtr _hook = IntPtr.Zero;
+    private static KeyboardHook? _keyboardHook;
 
     private static void Main(string[] args)
     {
         _diag = args.Length > 0 && args[0].Equals("diag", StringComparison.OrdinalIgnoreCase);
 
-        _hook = Native.SetWindowsHookEx(Native.WH_KEYBOARD_LL, _proc,
-            Process.GetCurrentProcess().MainModule!.BaseAddress, 0);
-        if (_hook == IntPtr.Zero)
+        try
         {
-            Console.Error.WriteLine($"SetWindowsHookEx failed: {Marshal.GetLastWin32Error()}");
+            _keyboardHook = new KeyboardHook(_proc);
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            Console.Error.WriteLine(ex.Message);
             return;
         }
 
@@ -49,13 +51,13 @@ internal static unsafe class FcnFn
             : "REMAP mode - Scroll Lock toggles on/off. Ctrl+C to quit.");
 
         while (Native.GetMessage(out _, IntPtr.Zero, 0, 0) > 0) { }
-        Native.UnhookWindowsHookEx(_hook);
+        _keyboardHook?.Dispose();
     }
 
     private static IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
         if (nCode < 0)
-            return Native.CallNextHookEx(_hook, nCode, wParam, lParam);
+            return Native.CallNextHookEx(_keyboardHook!.Handle, nCode, wParam, lParam);
 
         ref var kb = ref *(Native.KBDLLHOOKSTRUCT*)lParam;   // no allocation
         int msg = (int)wParam;
@@ -68,7 +70,7 @@ internal static unsafe class FcnFn
             Console.WriteLine($" 0x{kb.vkCode:X2}    0x{kb.scanCode:X3}   0x{kb.flags:X2}    " +
                               $"{((kb.flags & 1) != 0 ? "E" : " ")}   {(inj ? "I" : " ")}   " +
                               $"{(isDown ? "DOWN" : "UP  ")}{(isMarker ? "  <ours>" : "")}");
-            return Native.CallNextHookEx(_hook, nCode, wParam, lParam);
+            return Native.CallNextHookEx(_keyboardHook!.Handle, nCode, wParam, lParam);
         }
 
         HookOutcome outcome = _engine.Process(kb.vkCode, isDown, isMarker);
@@ -77,7 +79,7 @@ internal static unsafe class FcnFn
         for (int i = 0; i < ops.Length; i++)
             Inject(ops[i].Vk, ops[i].Up);
 
-        return outcome.Swallow ? (IntPtr)1 : Native.CallNextHookEx(_hook, nCode, wParam, lParam);
+        return outcome.Swallow ? (IntPtr)1 : Native.CallNextHookEx(_keyboardHook!.Handle, nCode, wParam, lParam);
     }
 
     private static readonly Native.INPUT[] _injectBuf = new Native.INPUT[1];
