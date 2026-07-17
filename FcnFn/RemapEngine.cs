@@ -41,6 +41,7 @@ internal sealed class RemapEngine
     private int _count;
 
     private bool _win, _shift, _ctrl, _alt;
+    private uint _winVk, _shiftVk, _ctrlVk; // the specific L/R VK currently held
     private readonly HashSet<uint> _suppressedModUps = new();
     private readonly Dictionary<uint, ushort> _activeChords = new();
 
@@ -54,11 +55,10 @@ internal sealed class RemapEngine
         _buffer[_count++] = new InjectOp(vk, up);
     }
 
-    private void ReleaseMod(ushort vk)
+    private void ReleaseMod(uint vk)
     {
-        _buffer[_count++] = new InjectOp(vk, true);
-        _suppressedModUps.Add(vk);            // left variant
-        _suppressedModUps.Add((uint)vk + 1);  // right variant (0x5C, 0xA1, 0xA3)
+        _buffer[_count++] = new InjectOp((ushort)vk, true);
+        _suppressedModUps.Add(vk);
     }
 
     public HookOutcome Process(uint vk, bool isDown, bool isMarker)
@@ -75,16 +75,19 @@ internal sealed class RemapEngine
             case 0x5B:
             case 0x5C: // L/R Win
                 _win = isDown;
+                if (isDown) _winVk = vk;
                 if (!isDown && _suppressedModUps.Remove(vk)) return new HookOutcome(true);
                 return new HookOutcome(false);
             case 0xA0:
             case 0xA1: // L/R Shift
                 _shift = isDown;
+                if (isDown) _shiftVk = vk;
                 if (!isDown && _suppressedModUps.Remove(vk)) return new HookOutcome(true);
                 return new HookOutcome(false);
             case 0xA2:
             case 0xA3: // L/R Ctrl
                 _ctrl = isDown;
+                if (isDown) _ctrlVk = vk;
                 if (!isDown && _suppressedModUps.Remove(vk)) return new HookOutcome(true);
                 return new HookOutcome(false);
             case 0xA4:
@@ -126,9 +129,9 @@ internal sealed class RemapEngine
                 {
                     Emit(0xFF, up: false); // dirty the Win press
                     Emit(0xFF, up: true);
-                    if (_win) ReleaseMod(0x5B);
-                    if (_shift) ReleaseMod(0xA0);
-                    if (_ctrl) ReleaseMod(0xA2);
+                    if (_win) ReleaseMod(_winVk);
+                    if (_shift) ReleaseMod(_shiftVk);
+                    if (_ctrl) ReleaseMod(_ctrlVk);
                 }
                 Emit(fk, up: false);
                 return new HookOutcome(true);

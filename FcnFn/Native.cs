@@ -58,6 +58,8 @@ internal static class Native
     internal static extern int GetMessage(out MSG msg, IntPtr hWnd, uint min, uint max);
     [DllImport("user32.dll")]
     internal static extern uint MapVirtualKey(uint uCode, uint uMapType);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    internal static extern uint RegisterWindowMessageW(string lpString);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     internal static extern bool AllocConsole();

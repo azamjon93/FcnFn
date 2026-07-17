@@ -200,4 +200,18 @@ public class RemapEngineTests
         var up = e.Process(0xA3 /*RCtrl*/, isDown: false, isMarker: false);
         Assert.True(up.Swallow); // right Ctrl up suppressed
     }
+
+    [Fact]
+    public void Opposite_variant_modifier_up_is_not_suppressed_after_chord()
+    {
+        var e = new RemapEngine();
+        e.Process(0x5B /*LWin*/, isDown: true, isMarker: false);
+        e.Process(0x84 /*F21*/, isDown: true, isMarker: false); // chord fires; suppresses only 0x5B
+        e.Process(0x5B, isDown: false, isMarker: false);          // physical LWin up consumed
+
+        // A later, unrelated RIGHT Win press/release must pass through untouched.
+        e.Process(0x5C /*RWin*/, isDown: true, isMarker: false);
+        var up = e.Process(0x5C, isDown: false, isMarker: false);
+        Assert.False(up.Swallow);
+    }
 }

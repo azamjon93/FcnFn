@@ -26,6 +26,7 @@ internal static unsafe class Program
     private static KeyboardHook? _keyboardHook;
     private static TrayIcon? _tray;
     private static readonly Native.INPUT[] _injectBuf = new Native.INPUT[1];
+    private static readonly int _inputSize = Marshal.SizeOf<Native.INPUT>();
     private static readonly LowLevelKeyboardProc _proc = HookCallback; // pin against GC
 
     private static int Main(string[] args)
@@ -128,7 +129,7 @@ internal static unsafe class Program
                 }
             }
         };
-        if (Native.SendInput(1, _injectBuf, Marshal.SizeOf<Native.INPUT>()) != 1)
+        if (Native.SendInput(1, _injectBuf, _inputSize) != 1)
             DiagConsole.Error($"SendInput failed vk=0x{vk:X2} err={Marshal.GetLastWin32Error()}");
     }
 }

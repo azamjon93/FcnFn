@@ -16,6 +16,7 @@ internal sealed class TrayIcon : IDisposable
     private readonly TrayCallbacks _cb;
     private readonly Native.WndProc _wndProc; // pinned
     private readonly IntPtr _hwnd;
+    private readonly uint _wmTaskbarCreated;
     private IntPtr _icon;
     private Native.NOTIFYICONDATA _nid;
     private bool _disposed;
@@ -34,8 +35,10 @@ internal sealed class TrayIcon : IDisposable
         };
         Native.RegisterClassW(ref wc);
 
+        _wmTaskbarCreated = Native.RegisterWindowMessageW("TaskbarCreated");
+
         _hwnd = Native.CreateWindowExW(0, ClassName, "FcnFn", 0, 0, 0, 0, 0,
-            Native.HWND_MESSAGE, IntPtr.Zero, hInstance, IntPtr.Zero);
+            IntPtr.Zero, IntPtr.Zero, hInstance, IntPtr.Zero);
 
         _icon = IconFactory.CreateFnIcon(_cb.IsEnabled());
         _nid = new Native.NOTIFYICONDATA
@@ -104,6 +107,13 @@ internal sealed class TrayIcon : IDisposable
 
     private IntPtr WndProcImpl(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
     {
+        if (msg == _wmTaskbarCreated)
+        {
+            _nid.uFlags = Native.NIF_MESSAGE | Native.NIF_ICON | Native.NIF_TIP;
+            Native.Shell_NotifyIconW(Native.NIM_ADD, ref _nid);
+            return IntPtr.Zero;
+        }
+
         switch (msg)
         {
             case Native.WM_TRAY:
