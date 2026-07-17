@@ -18,9 +18,8 @@ public class AutoStartTests
         int tn = Array.IndexOf(args, "/TN");
         Assert.Equal("FcnFn", args[tn + 1]);
 
-        // The run target must be the quoted exe path so spaces survive.
         int tr = Array.IndexOf(args, "/TR");
-        Assert.Equal("\"C:\\Tools\\FcnFn.exe\"", args[tr + 1]);
+        Assert.Equal(@"C:\Tools\FcnFn.exe", args[tr + 1]);
     }
 
     [Fact]

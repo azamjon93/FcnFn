@@ -8,7 +8,7 @@ internal static class AutoStart
 
     public static string[] CreateArgs(string exePath) => new[]
     {
-        "/Create", "/TN", TaskName, "/TR", $"\"{exePath}\"",
+        "/Create", "/TN", TaskName, "/TR", exePath,
         "/SC", "ONLOGON", "/RL", "LIMITED", "/F"
     };
 
@@ -28,6 +28,8 @@ internal static class AutoStart
         foreach (var a in args) psi.ArgumentList.Add(a);
 
         using var p = Process.Start(psi)!;
+        p.StandardOutput.ReadToEnd();
+        p.StandardError.ReadToEnd();
         p.WaitForExit();
         return p.ExitCode;
     }
