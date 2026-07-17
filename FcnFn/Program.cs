@@ -18,6 +18,8 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
+namespace FcnFn;
+
 internal static class FcnFn
 {
     // ---- Media-key map (OS-injected VKs from HID consumer usages) --------
@@ -45,59 +47,6 @@ internal static class FcnFn
     };
     // ----------------------------------------------------------------------
 
-    private const int WH_KEYBOARD_LL = 13;
-    private const int WM_KEYDOWN = 0x0100, WM_KEYUP = 0x0101;
-    private const int WM_SYSKEYDOWN = 0x0104, WM_SYSKEYUP = 0x0105;
-    private const uint KEYEVENTF_KEYUP = 0x0002;
-    private const uint LLKHF_INJECTED = 0x10;
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct KBDLLHOOKSTRUCT
-    { public uint vkCode, scanCode, flags, time; public IntPtr dwExtraInfo; }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct KEYBDINPUT
-    { public ushort wVk, wScan; public uint dwFlags, time; public IntPtr dwExtraInfo; }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct MOUSEINPUT
-    { public int dx, dy; public uint mouseData, dwFlags, time; public IntPtr dwExtraInfo; }
-
-    [StructLayout(LayoutKind.Explicit)]
-    private struct InputUnion
-    {
-        [FieldOffset(0)] public MOUSEINPUT mi; // sizes the union correctly (32 bytes on x64)
-        [FieldOffset(0)] public KEYBDINPUT ki;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct INPUT
-    { public uint type; public InputUnion U; }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct MSG
-    {
-        public IntPtr hwnd; public uint message; public IntPtr wParam; public IntPtr lParam;
-        public uint time; public int ptX, ptY;
-    }
-
-    private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
-    [DllImport("user32.dll")]
-    private static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
-    [DllImport("user32.dll")]
-    private static extern bool UnhookWindowsHookEx(IntPtr hhk);
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
-    [DllImport("user32.dll")]
-    private static extern int GetMessage(out MSG msg, IntPtr hWnd, uint min, uint max);
-    [DllImport("user32.dll")]
-    private static extern uint MapVirtualKey(uint uCode, uint uMapType);
-
-    private static readonly IntPtr Marker = new IntPtr(0xF17F17);
-
     private static bool _diag;
     private static bool _remapEnabled = true;
     private static LowLevelKeyboardProc _proc = HookCallback; // pin against GC
@@ -115,7 +64,7 @@ internal static class FcnFn
     {
         _diag = args.Length > 0 && args[0].Equals("diag", StringComparison.OrdinalIgnoreCase);
 
-        _hook = SetWindowsHookEx(WH_KEYBOARD_LL, _proc,
+        _hook = Native.SetWindowsHookEx(Native.WH_KEYBOARD_LL, _proc,
             Process.GetCurrentProcess().MainModule!.BaseAddress, 0);
         if (_hook == IntPtr.Zero)
         {
@@ -127,32 +76,32 @@ internal static class FcnFn
             ? "DIAG mode - press keys; Ctrl+C to quit.\n vk      scan    flags   ext inj  msg"
             : "REMAP mode - Scroll Lock toggles on/off. Ctrl+C to quit.");
 
-        while (GetMessage(out _, IntPtr.Zero, 0, 0) > 0) { }
-        UnhookWindowsHookEx(_hook);
+        while (Native.GetMessage(out _, IntPtr.Zero, 0, 0) > 0) { }
+        Native.UnhookWindowsHookEx(_hook);
     }
 
     private static IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
         if (nCode < 0)
-            return CallNextHookEx(_hook, nCode, wParam, lParam);
+            return Native.CallNextHookEx(_hook, nCode, wParam, lParam);
 
-        var kb = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
+        var kb = Marshal.PtrToStructure<Native.KBDLLHOOKSTRUCT>(lParam);
         int msg = (int)wParam;
-        bool isDown = msg is WM_KEYDOWN or WM_SYSKEYDOWN;
-        bool ours = kb.dwExtraInfo == Marker;
+        bool isDown = msg is Native.WM_KEYDOWN or Native.WM_SYSKEYDOWN;
+        bool ours = kb.dwExtraInfo == Native.Marker;
 
         if (_diag)
         {
-            bool inj = (kb.flags & LLKHF_INJECTED) != 0;
+            bool inj = (kb.flags & Native.LLKHF_INJECTED) != 0;
             Console.WriteLine($" 0x{kb.vkCode:X2}    0x{kb.scanCode:X3}   0x{kb.flags:X2}    " +
                               $"{((kb.flags & 1) != 0 ? "E" : " ")}   {(inj ? "I" : " ")}   " +
                               $"{(isDown ? "DOWN" : "UP  ")}{(ours ? "  <ours>" : "")}");
-            return CallNextHookEx(_hook, nCode, wParam, lParam);
+            return Native.CallNextHookEx(_hook, nCode, wParam, lParam);
         }
 
         // Skip ONLY our own injections. OS-injected media keys must be processed.
         if (ours)
-            return CallNextHookEx(_hook, nCode, wParam, lParam);
+            return Native.CallNextHookEx(_hook, nCode, wParam, lParam);
 
         // --- modifier bookkeeping (physical state) ---
         switch (kb.vkCode)
@@ -161,21 +110,21 @@ internal static class FcnFn
             case 0x5C: // L/R Win
                 _win = isDown;
                 if (!isDown && _suppressedModUps.Remove(kb.vkCode)) return (IntPtr)1;
-                return CallNextHookEx(_hook, nCode, wParam, lParam);
+                return Native.CallNextHookEx(_hook, nCode, wParam, lParam);
             case 0xA0:
             case 0xA1: // L/R Shift
                 _shift = isDown;
                 if (!isDown && _suppressedModUps.Remove(kb.vkCode)) return (IntPtr)1;
-                return CallNextHookEx(_hook, nCode, wParam, lParam);
+                return Native.CallNextHookEx(_hook, nCode, wParam, lParam);
             case 0xA2:
             case 0xA3: // L/R Ctrl
                 _ctrl = isDown;
                 if (!isDown && _suppressedModUps.Remove(kb.vkCode)) return (IntPtr)1;
-                return CallNextHookEx(_hook, nCode, wParam, lParam);
+                return Native.CallNextHookEx(_hook, nCode, wParam, lParam);
             case 0xA4:
             case 0xA5: // L/R Alt
                 _alt = isDown;
-                return CallNextHookEx(_hook, nCode, wParam, lParam);
+                return Native.CallNextHookEx(_hook, nCode, wParam, lParam);
         }
 
         // --- toggle: Scroll Lock (single key, no chord). Both down and up
@@ -192,7 +141,7 @@ internal static class FcnFn
         }
 
         if (!_remapEnabled)
-            return CallNextHookEx(_hook, nCode, wParam, lParam);
+            return Native.CallNextHookEx(_hook, nCode, wParam, lParam);
 
         // --- media keys (OS-injected consumer usages) ---
         if (MediaMap.TryGetValue(kb.vkCode, out ushort mediaFk))
@@ -231,7 +180,7 @@ internal static class FcnFn
             return (IntPtr)1;
         }
 
-        return CallNextHookEx(_hook, nCode, wParam, lParam);
+        return Native.CallNextHookEx(_hook, nCode, wParam, lParam);
     }
 
     private static void ReleaseMod(ushort vk)
@@ -243,23 +192,23 @@ internal static class FcnFn
 
     private static void Inject(ushort vk, bool up)
     {
-        var input = new INPUT
+        var input = new Native.INPUT
         {
             type = 1, // INPUT_KEYBOARD
-            U = new InputUnion
+            U = new Native.InputUnion
             {
-                ki = new KEYBDINPUT
+                ki = new Native.KEYBDINPUT
                 {
                     wVk = vk,
-                    wScan = (ushort)MapVirtualKey(vk, 0 /* MAPVK_VK_TO_VSC */),
-                    dwFlags = up ? KEYEVENTF_KEYUP : 0,
-                    dwExtraInfo = Marker
+                    wScan = (ushort)Native.MapVirtualKey(vk, 0 /* MAPVK_VK_TO_VSC */),
+                    dwFlags = up ? Native.KEYEVENTF_KEYUP : 0,
+                    dwExtraInfo = Native.Marker
                 }
             }
         };
-        uint sent = SendInput(1, new[] { input }, Marshal.SizeOf<INPUT>());
+        uint sent = Native.SendInput(1, new[] { input }, Marshal.SizeOf<Native.INPUT>());
         if (sent != 1)
             Console.Error.WriteLine(
-                $"SendInput failed for vk 0x{vk:X2} (err={Marshal.GetLastWin32Error()}, cbSize={Marshal.SizeOf<INPUT>()})");
+                $"SendInput failed for vk 0x{vk:X2} (err={Marshal.GetLastWin32Error()}, cbSize={Marshal.SizeOf<Native.INPUT>()})");
     }
 }
