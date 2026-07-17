@@ -65,6 +65,7 @@ internal static class Native
     internal static extern bool FreeConsole();
 
     // ---- window class / message-only window ----
+    internal const uint WM_NULL = 0x0000;
     internal const uint WM_APP = 0x8000;
     internal const uint WM_TRAY = WM_APP + 1;   // our NotifyIcon callback message
     internal const uint WM_COMMAND = 0x0111;
@@ -152,6 +153,8 @@ internal static class Native
     internal static extern int TrackPopupMenu(IntPtr hMenu, uint flags, int x, int y, int reserved, IntPtr hWnd, IntPtr rect);
     [DllImport("user32.dll")]
     internal static extern bool DestroyIcon(IntPtr hIcon);
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern bool PostMessageW(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
     // ---- GDI for drawing the icon ----
     [StructLayout(LayoutKind.Sequential)]

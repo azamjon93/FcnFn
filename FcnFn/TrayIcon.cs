@@ -90,6 +90,7 @@ internal sealed class TrayIcon : IDisposable
         Native.SetForegroundWindow(_hwnd); // so the menu dismisses on focus loss
         int cmd = Native.TrackPopupMenu(menu,
             Native.TPM_RIGHTBUTTON | Native.TPM_RETURNCMD, pt.X, pt.Y, 0, _hwnd, IntPtr.Zero);
+        Native.PostMessageW(_hwnd, Native.WM_NULL, IntPtr.Zero, IntPtr.Zero);
         Native.DestroyMenu(menu);
 
         switch ((uint)cmd)
