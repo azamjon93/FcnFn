@@ -3,8 +3,9 @@
 // Build (.NET 8+ console project) or: csc /target:exe FcnFn.cs
 //
 // Usage:
-//   FcnFn diag      -> log every key event (vk, scancode, flags, injected)
-//   FcnFn remap     -> remap per the tables below. Scroll Lock toggles.
+//   FcnFn          -> remap per the tables below. Scroll Lock toggles.
+//                     Diagnostics (vk, scancode, flags, injected) can be
+//                     toggled on demand via DiagConsole (tray menu).
 //
 // v2 changes based on real diag data:
 //  - Media keys arrive OS-INJECTED (hidserv translates HID consumer usages
@@ -27,15 +28,12 @@ namespace FcnFn;
 
 internal static unsafe class FcnFn
 {
-    private static bool _diag;
     private static readonly RemapEngine _engine = new();
     private static LowLevelKeyboardProc _proc = HookCallback; // pin against GC
     private static KeyboardHook? _keyboardHook;
 
     private static void Main(string[] args)
     {
-        _diag = args.Length > 0 && args[0].Equals("diag", StringComparison.OrdinalIgnoreCase);
-
         try
         {
             _keyboardHook = new KeyboardHook(_proc);
@@ -46,9 +44,7 @@ internal static unsafe class FcnFn
             return;
         }
 
-        Console.WriteLine(_diag
-            ? "DIAG mode - press keys; Ctrl+C to quit.\n vk      scan    flags   ext inj  msg"
-            : "REMAP mode - Scroll Lock toggles on/off. Ctrl+C to quit.");
+        Console.WriteLine("REMAP mode - Scroll Lock toggles on/off. Ctrl+C to quit.");
 
         while (Native.GetMessage(out _, IntPtr.Zero, 0, 0) > 0) { }
         _keyboardHook?.Dispose();
@@ -64,14 +60,7 @@ internal static unsafe class FcnFn
         bool isDown = msg is Native.WM_KEYDOWN or Native.WM_SYSKEYDOWN;
         bool isMarker = kb.dwExtraInfo == Native.Marker;
 
-        if (_diag)
-        {
-            bool inj = (kb.flags & Native.LLKHF_INJECTED) != 0;
-            Console.WriteLine($" 0x{kb.vkCode:X2}    0x{kb.scanCode:X3}   0x{kb.flags:X2}    " +
-                              $"{((kb.flags & 1) != 0 ? "E" : " ")}   {(inj ? "I" : " ")}   " +
-                              $"{(isDown ? "DOWN" : "UP  ")}{(isMarker ? "  <ours>" : "")}");
-            return Native.CallNextHookEx(_keyboardHook!.Handle, nCode, wParam, lParam);
-        }
+        DiagConsole.Log(in kb, isDown, isMarker);
 
         HookOutcome outcome = _engine.Process(kb.vkCode, isDown, isMarker);
 
@@ -102,7 +91,7 @@ internal static unsafe class FcnFn
         };
         uint sent = Native.SendInput(1, _injectBuf, Marshal.SizeOf<Native.INPUT>());
         if (sent != 1)
-            Console.Error.WriteLine(
+            DiagConsole.Error(
                 $"SendInput failed for vk 0x{vk:X2} (err={Marshal.GetLastWin32Error()}, cbSize={Marshal.SizeOf<Native.INPUT>()})");
     }
 }
