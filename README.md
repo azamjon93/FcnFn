@@ -60,6 +60,13 @@ The hook decision logic lives in a pure, unit-tested `RemapEngine`; everything t
 
 The key codes are keyboard-specific. Capture yours with **Diagnostic logging** before adjusting the maps.
 
+## Linux / Ubuntu
+
+FcnFn is Windows-only — its input hook, injection, and tray are all Win32 APIs, and Ubuntu 24's
+Wayland forbids app-level global key interception. The equivalent on Linux is [`keyd`](https://github.com/rvaiya/keyd),
+an evdev-level daemon that does the same remapping below the display server. See
+[docs/ubuntu-keyd-setup.md](docs/ubuntu-keyd-setup.md) for the setup.
+
 ## Development
 
 ```powershell
