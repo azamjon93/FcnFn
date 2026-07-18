@@ -1,4 +1,7 @@
 <Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
   <Project Path="FcnFn/FcnFn.csproj" />
   <Project Path="FcnFn.Tests/FcnFn.Tests.csproj" />
 </Solution>

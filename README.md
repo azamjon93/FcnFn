@@ -45,10 +45,10 @@ FcnFn --uninstall    # remove it
 ### Publishing a standalone executable
 
 ```powershell
-dotnet publish FcnFn/FcnFn.csproj -c Release -r win-x64
+dotnet publish FcnFn/FcnFn.csproj -c Release
 ```
 
-Native-AOT publish invokes the MSVC linker, so run it from a **Visual Studio Developer Command Prompt/PowerShell** (or with the VS C++ build tools on `PATH`). The plain `dotnet build` and `dotnet test` work from any shell.
+The project targets the **x64** platform and declares the `win-x64` runtime identifier, so publish produces a native x64 executable without an explicit `-r`. Native-AOT publish invokes the MSVC linker, so run it from a **Visual Studio Developer Command Prompt/PowerShell** (or with the VS C++ build tools on `PATH`). The plain `dotnet build` and `dotnet test` work from any shell.
 
 ## How it works
 

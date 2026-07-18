@@ -19,10 +19,12 @@ dotnet run --project FcnFn   # launches the tray app (managed build)
 - **Auto-start needs elevation:** creating/removing the logon Scheduled Task via `schtasks` requires admin, so `--install`/`--uninstall` and the tray's "Run at login" toggle launch `schtasks` elevated via a UAC prompt (`ShellExecute` `runas`). Declining the prompt is handled gracefully (no-op, `ERROR_CANCELLED` swallowed). The remap hook and tray themselves need **no** admin — only enabling auto-start does. (`schtasks /Query` for the checkmark state runs un-elevated.)
 - **Target framework** is `net10.0` (NOT `net10.0-windows` — all Windows access is manual P/Invoke) with `PublishAot=true` and `OutputType=WinExe`.
 
-### AOT publish
+### Platform & AOT publish
+
+Both projects target the **x64** platform (`<Platforms>x64</Platforms>` + `<PlatformTarget>x64</PlatformTarget>`); the app declares `<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>` (plural — declares the RID for publish without making the app a self-contained exe on `build`, which would break the test project's reference). An explicit x64 build (`dotnet build -p:Platform=x64`) lands in `bin/x64/...`.
 
 ```powershell
-dotnet publish FcnFn/FcnFn.csproj -c Release -r win-x64
+dotnet publish FcnFn/FcnFn.csproj -c Release   # auto-targets win-x64, no -r needed
 ```
 
 Native-AOT publish invokes the **MSVC linker**, so it must run from an environment where `vswhere.exe` / `link.exe` are discoverable (a *Visual Studio Developer Command Prompt/PowerShell*, or with the VS C++ build tools on `PATH`). From a plain shell the publish fails at the native link step (`vswhere.exe not recognized`, exit 123) even though the managed `dotnet build` succeeds. Runtime/manual verification can use the ordinary `dotnet build` output exe — AOT is only needed for the final self-contained artifact.
