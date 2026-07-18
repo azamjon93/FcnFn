@@ -21,7 +21,7 @@ dotnet run --project FcnFn   # launches the tray app (managed build)
 
 ### Platform & AOT publish
 
-Both projects target the **x64** platform (`<Platforms>x64</Platforms>` + `<PlatformTarget>x64</PlatformTarget>`); the app declares `<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>` (plural — declares the RID for publish without making the app a self-contained exe on `build`, which would break the test project's reference). An explicit x64 build (`dotnet build -p:Platform=x64`) lands in `bin/x64/...`.
+Both projects expose the **`AnyCPU;x64`** platforms (`<Platforms>`) and force 64-bit codegen with `<PlatformTarget>x64</PlatformTarget>`; the solution (`FcnFn.slnx`) declares both `Any CPU` and `x64`. Both platforms are kept because VS always retains an `Any CPU` solution platform — dropping it from the projects makes VS reject the solution ("specifies a project configuration that does not exist"). The app declares `<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>` (plural — declares the RID for publish without making the app a self-contained exe on `build`, which would break the test project's reference). An explicit x64 build (`dotnet build FcnFn/FcnFn.csproj -p:Platform=x64`) lands in `bin/x64/...`.
 
 ```powershell
 dotnet publish FcnFn/FcnFn.csproj -c Release   # auto-targets win-x64, no -r needed
